@@ -10,14 +10,23 @@ const client = new Client({
     ]
 });
 
-const TOKEN = process.env.BOT_TOKEN || 'YOUR_BOT_TOKEN_HERE';
-const CLIENT_ID = process.env.CLIENT_ID || 'YOUR_CLIENT_ID_HERE';
-const GUILD_ID = process.env.GUILD_ID || 'YOUR_GUILD_ID_HERE'; // Optional - để deploy nhanh
+// ========== CẤU HÌNH ==========
+const TOKEN = process.env.BOT_TOKEN;
+const CLIENT_ID = process.env.CLIENT_ID;
+const ADMIN_ID = process.env.ADMIN_ID || '1316027180433801296';
 
-// ========== CẤU HÌNH ADMIN ==========
-const ADMIN_ID = '1316027180433801296';
+// Kiểm tra biến môi trường
+if (!TOKEN) {
+    console.error('❌ Lỗi: BOT_TOKEN không được tìm thấy trong .env');
+    process.exit(1);
+}
 
-// Database tạm
+if (!CLIENT_ID) {
+    console.error('❌ Lỗi: CLIENT_ID không được tìm thấy trong .env');
+    process.exit(1);
+}
+
+// Database tạm (lưu trong RAM)
 const games = {
     economy: new Map(),
     gambling: new Map(),
@@ -263,23 +272,16 @@ async function deployCommands() {
         
         console.log('🔄 Đang deploy slash commands...');
         
-        if (GUILD_ID) {
-            // Deploy cho guild cụ thể (nhanh hơn)
-            await rest.put(
-                Routes.applicationGuildCommands(CLIENT_ID, GUILD_ID),
-                { body: commands.map(cmd => cmd.toJSON()) }
-            );
-            console.log(`✅ Deploy thành công cho guild ${GUILD_ID}`);
-        } else {
-            // Deploy global (mất đến 1h để cập nhật)
-            await rest.put(
-                Routes.applicationCommands(CLIENT_ID),
-                { body: commands.map(cmd => cmd.toJSON()) }
-            );
-            console.log('✅ Deploy global thành công');
-        }
+        // Deploy global commands
+        await rest.put(
+            Routes.applicationCommands(CLIENT_ID),
+            { body: commands.map(cmd => cmd.toJSON()) }
+        );
+        
+        console.log('✅ Deploy global commands thành công!');
+        console.log('⏳ Lưu ý: Slash commands có thể mất đến 1 giờ để cập nhật trên toàn cầu.');
     } catch (error) {
-        console.error('❌ Lỗi deploy:', error);
+        console.error('❌ Lỗi deploy commands:', error);
     }
 }
 
@@ -970,6 +972,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
 client.once(Events.ClientReady, async (c) => {
     console.log(`✅ Bot đã sẵn sàng! Đăng nhập với tên: ${c.user.tag}`);
     console.log(`👑 Admin ID: ${ADMIN_ID}`);
+    console.log(`🔄 Đang deploy slash commands...`);
     client.user.setActivity('🎮 /game để chơi', { type: 'PLAYING' });
     
     // Deploy commands khi bot khởi động
@@ -989,4 +992,8 @@ process.on('SIGINT', () => {
     console.log('🛑 Đang tắt bot...');
     client.destroy();
     process.exit();
+});
+
+process.on('unhandledRejection', (error) => {
+    console.error('❌ Unhandled Rejection:', error);
 });
